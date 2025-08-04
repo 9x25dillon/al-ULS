@@ -1,0 +1,6 @@
+torch>=2.0.0
+numpy>=1.21.0
+requests>=2.25.0
+logging>=0.4.9.6
+dataclasses>=0.6
+pathlib>=1.0.1
