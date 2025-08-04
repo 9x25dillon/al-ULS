@@ -135,7 +135,7 @@ class TAULSTrainingConfig:
 class JuliaServerManager:
     """Manages Julia server lifecycle"""
     
-    def __init__(self, port: int = 8000, julia_script_path: str = "julia_integration.jl"):
+    def __init__(self, port: int = 8000, julia_script_path: str = "Al-uLS.jl"):
         self.port = port
         self.julia_script_path = julia_script_path
         self.process = None
@@ -503,4 +503,9 @@ def main():
         
     except Exception as e:
         logging.error(f"Training failed: {e}")
-    finall
+    finally:
+        # Cleanup resources
+        trainer.cleanup()
+
+if __name__ == "__main__":
+    main()

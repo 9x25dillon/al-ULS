@@ -241,3 +241,268 @@ function optimize_matrix(matrix::Matrix{Float64}, method::String="auto")
 
             return result
             
+        else
+            return Dict{String, Any}("error" => "Unknown optimization method: $method")
+        end
+        
+    catch e
+        return Dict{String, Any}("error" => "Matrix optimization failed: $(e)")
+    end
+end
+
+"""
+Create polynomial representations from numerical data
+"""
+function create_polynomials(data::Matrix{Float64}, variables::Vector{String})
+    m, n = size(data)
+    
+    try
+        # Ensure we have enough variables
+        if length(variables) < n
+            variables = [variables; ["x$i" for i in (length(variables)+1):n]]
+        end
+        
+        # Create polynomial variables
+        @polyvar vars[1:n]
+        
+        # Create simple polynomial representations
+        polynomials = Dict{String, Any}()
+        
+        # For each row, create a polynomial
+        for i in 1:min(m, 10)  # Limit to first 10 rows for performance
+            poly_coeffs = data[i, :]
+            
+            # Create linear polynomial: sum(coeff_j * var_j)
+            poly_expr = sum(poly_coeffs[j] * vars[j] for j in 1:n)
+            
+            polynomials["poly_$i"] = Dict{String, Any}(
+                "coefficients" => poly_coeffs,
+                "variables" => variables[1:n],
+                "degree" => 1,
+                "terms" => n
+            )
+        end
+        
+        result = Dict{String, Any}()
+        result["polynomials"] = polynomials
+        result["total_polynomials"] = min(m, 10)
+        result["variables_used"] = variables[1:n]
+        result["max_degree"] = 1
+        
+        return result
+        
+    catch e
+        return Dict{String, Any}("error" => "Polynomial creation failed: $(e)")
+    end
+end
+
+"""
+Analyze polynomial structures for optimization insights
+"""
+function analyze_polynomials(polynomials::Dict{String, Any})
+    try
+        if !haskey(polynomials, "polynomials")
+            return Dict{String, Any}("error" => "Invalid polynomial structure")
+        end
+        
+        poly_dict = polynomials["polynomials"]
+        total_terms = 0
+        total_degree = 0
+        sparsity_ratios = Float64[]
+        
+        for (name, poly) in poly_dict
+            if isa(poly, Dict) && haskey(poly, "coefficients")
+                coeffs = poly["coefficients"]
+                if isa(coeffs, Vector)
+                    total_terms += length(coeffs)
+                    total_degree += get(poly, "degree", 1)
+                    
+                    # Compute sparsity
+                    non_zero = count(x -> abs(x) > 1e-6, coeffs)
+                    sparsity = 1.0 - non_zero / length(coeffs)
+                    push!(sparsity_ratios, sparsity)
+                end
+            end
+        end
+        
+        result = Dict{String, Any}()
+        result["total_terms"] = total_terms
+        result["average_degree"] = total_degree / length(poly_dict)
+        result["average_sparsity"] = length(sparsity_ratios) > 0 ? mean(sparsity_ratios) : 0.0
+        result["sparsity_variance"] = length(sparsity_ratios) > 0 ? var(sparsity_ratios) : 0.0
+        result["optimization_potential"] = result["average_sparsity"] * 0.5 + (1.0 - result["average_degree"] / 10.0) * 0.5
+        result["complexity_score"] = total_terms / max(1, length(poly_dict))
+        
+        return result
+        
+    catch e
+        return Dict{String, Any}("error" => "Polynomial analysis failed: $(e)")
+    end
+end
+
+"""
+Convert Julia data structures to JSON-compatible format
+"""
+function to_json(data::Any)
+    try
+        if isa(data, Dict)
+            return Dict(string(k) => to_json(v) for (k, v) in data)
+        elseif isa(data, Array)
+            return [to_json(x) for x in data]
+        elseif isa(data, Matrix)
+            return [data[i, :] for i in 1:size(data, 1)]
+        else
+            return data
+        end
+    catch e
+        return Dict("error" => "JSON conversion failed: $(e)")
+    end
+end
+
+"""
+HTTP request handler for Julia mathematical operations
+"""
+function handle_request(request_data::Dict{String, Any})
+    try
+        if !haskey(request_data, "function") || !haskey(request_data, "args")
+            return Dict{String, Any}("error" => "Invalid request format")
+        end
+        
+        func_name = request_data["function"]
+        args = request_data["args"]
+        
+        result = if func_name == "optimize_matrix"
+            if length(args) >= 2
+                matrix = Matrix{Float64}(hcat([Float64.(row) for row in args[1]]...)')
+                method = string(args[2])
+                optimize_matrix(matrix, method)
+            else
+                Dict{String, Any}("error" => "optimize_matrix requires matrix and method")
+            end
+            
+        elseif func_name == "create_polynomials"
+            if length(args) >= 2
+                data = Matrix{Float64}(hcat([Float64.(row) for row in args[1]]...)')
+                variables = Vector{String}(args[2])
+                create_polynomials(data, variables)
+            else
+                Dict{String, Any}("error" => "create_polynomials requires data and variables")
+            end
+            
+        elseif func_name == "analyze_polynomials"
+            if length(args) >= 1
+                analyze_polynomials(args[1])
+            else
+                Dict{String, Any}("error" => "analyze_polynomials requires polynomials")
+            end
+            
+        elseif func_name == "stability_analysis"
+            if length(args) >= 1
+                matrix = Matrix{Float64}(hcat([Float64.(row) for row in args[1]]...)')
+                stability_analysis(matrix)
+            else
+                Dict{String, Any}("error" => "stability_analysis requires matrix")
+            end
+            
+        elseif func_name == "kfp_optimize_matrix"
+            if length(args) >= 1
+                matrix = Matrix{Float64}(hcat([Float64.(row) for row in args[1]]...)')
+                stability_target = length(args) >= 2 ? Float64(args[2]) : 0.8
+                kfp_optimize_matrix(matrix, stability_target)
+            else
+                Dict{String, Any}("error" => "kfp_optimize_matrix requires matrix")
+            end
+            
+        elseif func_name == "entropy_regularization"
+            if length(args) >= 1
+                matrix = Matrix{Float64}(hcat([Float64.(row) for row in args[1]]...)')
+                target_entropy = length(args) >= 2 ? Float64(args[2]) : 0.7
+                entropy_regularization(matrix, target_entropy)
+            else
+                Dict{String, Any}("error" => "entropy_regularization requires matrix")
+            end
+            
+        else
+            Dict{String, Any}("error" => "Unknown function: $func_name")
+        end
+        
+        return to_json(result)
+        
+    catch e
+        return Dict{String, Any}("error" => "Request handling failed: $(e)")
+    end
+end
+
+"""
+Start HTTP server for Julia mathematical operations
+"""
+function start_http_server(port::Int=8000)
+    println("Starting Julia HTTP server on port $port...")
+    
+    function handle_http_request(req::HTTP.Request)
+        try
+            # Set CORS headers
+            headers = [
+                "Access-Control-Allow-Origin" => "*",
+                "Access-Control-Allow-Methods" => "POST, OPTIONS",
+                "Access-Control-Allow-Headers" => "Content-Type",
+                "Content-Type" => "application/json"
+            ]
+            
+            # Handle OPTIONS request for CORS
+            if req.method == "OPTIONS"
+                return HTTP.Response(200, headers, "")
+            end
+            
+            # Only handle POST requests
+            if req.method != "POST"
+                return HTTP.Response(405, headers, JSON.json(Dict("error" => "Method not allowed")))
+            end
+            
+            # Parse request body
+            request_body = String(req.body)
+            request_data = JSON.parse(request_body)
+            
+            # Process request
+            result = handle_request(request_data)
+            
+            # Return response
+            response_body = JSON.json(result)
+            return HTTP.Response(200, headers, response_body)
+            
+        catch e
+            error_response = JSON.json(Dict("error" => "Server error: $(e)"))
+            return HTTP.Response(500, ["Content-Type" => "application/json"], error_response)
+        end
+    end
+    
+    try
+        # Start the server
+        HTTP.serve(handle_http_request, "0.0.0.0", port)
+        
+    catch e
+        println("Failed to start server: $e")
+        rethrow(e)
+    end
+end
+
+"""
+Main entry point for testing
+"""
+function main()
+    println("TA ULS Julia Integration Server")
+    println("Available functions:")
+    println("- optimize_matrix(matrix, method)")
+    println("- create_polynomials(data, variables)")
+    println("- analyze_polynomials(polynomials)")
+    println("- stability_analysis(matrix)")
+    println("- kfp_optimize_matrix(matrix, stability_target)")
+    println("- entropy_regularization(matrix, target_entropy)")
+    println("\nTo start HTTP server, call: start_http_server(port)")
+end
+
+# Run main if script is executed directly
+if abspath(PROGRAM_FILE) == @__FILE__
+    main()
+end
+            
