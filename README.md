@@ -146,26 +146,5 @@ Real-time matrix analyzers
 MIT License. See LICENSE file.
 
 👨‍🔬 Authors
-Developed by [Your Name or Team]
+Developed by [9xKi11] ai n satan
 Inspired by TA ULS theory and information entropy dynamics.
-
-yaml
-Copy code
-
----
-
-Let me know if you'd like it tailored for a GitHub release or turned into a live service via `Docker`, `Systemd`, or `FastAPI` proxy.
-
-
-
-
-
-
-
-
-
-Tools
-
-
-
-ChatGPT can make mistakes. Check important
