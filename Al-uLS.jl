@@ -223,4 +223,21 @@ function optimize_matrix(matrix::Matrix{Float64}, method::String="auto")
             F = svd(matrix)
             # Adaptive rank selection based on singular value distribution
             cumsum_s = cumsum(F.S) / sum(F.S)
-            k = findfirst(x -> x > 0.8, cum
+            k = findfirst(x -> x > 0.8, cumsum_s)
+            k = isnothing(k) ? min(length(F.S), 5) : k
+
+            # Truncate to rank-k approximation
+            U_k = F.U[:, 1:k]
+            S_k = Diagonal(F.S[1:k])
+            V_k = F.Vt[1:k, :]
+            low_rank_matrix = U_k * S_k * V_k
+
+            result = Dict{String, Any}()
+            result["optimized_matrix"] = round.(low_rank_matrix, digits=6)
+            result["rank_used"] = k
+            result["original_rank"] = rank(matrix)
+            result["compression_ratio"] = 1.0 - k / min(m, n)
+            result["method"] = "low_rank_approximation"
+
+            return result
+            
